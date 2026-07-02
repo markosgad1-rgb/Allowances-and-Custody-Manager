@@ -3,32 +3,34 @@ import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { collection, onSnapshot, doc, setDoc, updateDoc, deleteDoc, getDocs } from 'firebase/firestore';
 import { db, firebaseConfig, handleFirestoreError, OperationType } from '../firebase';
-import { UserProfile, Transaction } from '../types';
+import { UserProfile, Transaction, RolePermissions, PermissionsConfig } from '../types';
 import { 
   Users, UserCheck, Search, ShieldAlert, Award, FileSpreadsheet, 
-  Trash2, Mail, Hash, ChevronLeft, UserX, AlertCircle, Clock, UserPlus, Lock
+  Trash2, Mail, Hash, ChevronLeft, UserX, AlertCircle, Clock, UserPlus, Lock, Settings
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface AdminPanelProps {
   currentUserProfile: UserProfile;
+  currentUserPermissions: RolePermissions;
+  permissionsConfig: PermissionsConfig;
   onSelectEmployee: (employee: UserProfile) => void;
 }
 
-export default function AdminPanel({ currentUserProfile, onSelectEmployee }: AdminPanelProps) {
+export default function AdminPanel({ currentUserProfile, currentUserPermissions, permissionsConfig, onSelectEmployee }: AdminPanelProps) {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [pendingTransactionsCount, setPendingTransactionsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   
   // Search and Filter states
   const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'employee' | 'pending'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'admin' | 'supervisor' | 'employee' | 'pending'>('all');
 
   // User Approval form state for currently selected pending user
   const [selectedPendingUser, setSelectedPendingUser] = useState<UserProfile | null>(null);
   const [approveName, setApproveName] = useState('');
   const [approveJobNumber, setApproveJobNumber] = useState('');
-  const [approveRole, setApproveRole] = useState<'employee' | 'admin'>('employee');
+  const [approveRole, setApproveRole] = useState<'employee' | 'supervisor' | 'admin'>('employee');
   const [approveError, setApproveError] = useState('');
   const [approveLoading, setApproveLoading] = useState(false);
 
@@ -37,7 +39,7 @@ export default function AdminPanel({ currentUserProfile, onSelectEmployee }: Adm
   const [newUserJobNumber, setNewUserJobNumber] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
-  const [newUserRole, setNewUserRole] = useState<'employee' | 'admin'>('employee');
+  const [newUserRole, setNewUserRole] = useState<'employee' | 'supervisor' | 'admin'>('employee');
   const [newUserAllowDelete, setNewUserAllowDelete] = useState(false);
   const [approveAllowDelete, setApproveAllowDelete] = useState(false);
   const [createError, setCreateError] = useState('');
@@ -48,6 +50,41 @@ export default function AdminPanel({ currentUserProfile, onSelectEmployee }: Adm
   const [editingPasswordUid, setEditingPasswordUid] = useState<string | null>(null);
   const [newPasswordValue, setNewPasswordValue] = useState('');
   const [passwordSaveLoading, setPasswordSaveLoading] = useState(false);
+
+  // Dynamic Permissions state
+  const [savingPerms, setSavingPerms] = useState(false);
+  const [permsConfigState, setPermsConfigState] = useState<PermissionsConfig>(permissionsConfig);
+
+  useEffect(() => {
+    setPermsConfigState(permissionsConfig);
+  }, [permissionsConfig]);
+
+  const handleTogglePermission = (role: 'admin' | 'supervisor' | 'employee', perm: keyof RolePermissions) => {
+    if (role === 'admin' && perm === 'canManageUsers') {
+      alert('لا يمكنك إلغاء صلاحية إدارة المستخدمين لمدير النظام لتجنب إغلاق الحساب.');
+      return;
+    }
+    setPermsConfigState(prev => ({
+      ...prev,
+      [role]: {
+        ...prev[role],
+        [perm]: !prev[role][perm]
+      }
+    }));
+  };
+
+  const handleSavePermissions = async () => {
+    setSavingPerms(true);
+    try {
+      await setDoc(doc(db, 'settings', 'permissions'), permsConfigState);
+      alert('تم حفظ وتحديث صلاحيات المجموعات بنجاح!');
+    } catch (err) {
+      console.error(err);
+      alert('حدث خطأ أثناء حفظ الصلاحيات في قاعدة البيانات.');
+    } finally {
+      setSavingPerms(false);
+    }
+  };
 
   const handleSavePassword = async (uid: string) => {
     if (!newPasswordValue.trim()) return;
@@ -294,9 +331,9 @@ export default function AdminPanel({ currentUserProfile, onSelectEmployee }: Adm
         {/* Manager/Admin count */}
         <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
           <div>
-            <div className="text-xs font-bold text-slate-400">عدد المسؤولين الماليين</div>
+            <div className="text-xs font-bold text-slate-400">المدراء والمشرفين</div>
             <div className="text-2xl font-black font-mono mt-0.5 text-slate-800">
-              {users.filter((u) => u.role === 'admin').length}
+              {users.filter((u) => u.role === 'admin' || u.role === 'supervisor').length}
             </div>
           </div>
           <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-lg">
@@ -324,8 +361,8 @@ export default function AdminPanel({ currentUserProfile, onSelectEmployee }: Adm
               </h2>
 
               {/* Roles Filter tabs */}
-              <div className="inline-flex gap-1 bg-slate-100 p-1 border border-slate-200 rounded-xl text-xs">
-                {(['all', 'employee', 'admin', 'pending'] as const).map((r) => (
+              <div className="inline-flex gap-1 bg-slate-100 p-1 border border-slate-200 rounded-xl text-xs flex-wrap">
+                {(['all', 'employee', 'supervisor', 'admin', 'pending'] as const).map((r) => (
                   <button
                     key={r}
                     onClick={() => setRoleFilter(r)}
@@ -336,8 +373,9 @@ export default function AdminPanel({ currentUserProfile, onSelectEmployee }: Adm
                     }`}
                   >
                     {r === 'all' && 'الكل'}
-                    {r === 'employee' && 'فني / مهندس'}
-                    {r === 'admin' && 'مسؤول'}
+                    {r === 'employee' && 'مستخدم عادي'}
+                    {r === 'supervisor' && 'مشرف مالي'}
+                    {r === 'admin' && 'مدير نظام'}
                     {r === 'pending' && 'معلق'}
                   </button>
                 ))}
@@ -391,7 +429,17 @@ export default function AdminPanel({ currentUserProfile, onSelectEmployee }: Adm
                           <span>{u.name}</span>
                           {u.role === 'admin' && (
                             <span className="px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 text-[10px] font-extrabold border border-indigo-100">
-                              مسؤول
+                              مدير النظام
+                            </span>
+                          )}
+                          {u.role === 'supervisor' && (
+                            <span className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 text-[10px] font-extrabold border border-purple-100">
+                              مشرف مالي
+                            </span>
+                          )}
+                          {u.role === 'employee' && (
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-extrabold border border-emerald-100">
+                              مستخدم عادي
                             </span>
                           )}
                           {u.role === 'pending' && (
@@ -580,8 +628,9 @@ export default function AdminPanel({ currentUserProfile, onSelectEmployee }: Adm
                       onChange={(e) => setApproveRole(e.target.value as any)}
                       className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all font-semibold"
                     >
-                      <option value="employee">فني / مهندس (رؤية حسابه الشخصي فقط)</option>
-                      <option value="admin">مسؤول مالي (صلاحية كاملة وإدارة الجميع)</option>
+                      <option value="employee">مستخدم عادي / فني (رؤية حسابه الشخصي فقط)</option>
+                      <option value="supervisor">مشرف مالي (إدارة الحسابات والاعتماد)</option>
+                      <option value="admin">مدير نظام (صلاحية كاملة وتحكم بالصلاحيات)</option>
                     </select>
                   </div>
 
@@ -704,8 +753,9 @@ export default function AdminPanel({ currentUserProfile, onSelectEmployee }: Adm
                         onChange={(e) => setNewUserRole(e.target.value as any)}
                         className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all font-semibold"
                       >
-                        <option value="employee">فني / مهندس (رؤية حسابه الشخصي فقط)</option>
-                        <option value="admin">مسؤول مالي (صلاحية كاملة وإدارة الجميع)</option>
+                        <option value="employee">مستخدم عادي / فني (رؤية حسابه الشخصي فقط)</option>
+                        <option value="supervisor">مشرف مالي (إدارة الحسابات والاعتماد)</option>
+                        <option value="admin">مدير نظام (صلاحية كاملة وتحكم بالصلاحيات)</option>
                       </select>
                     </div>
 
@@ -787,6 +837,70 @@ export default function AdminPanel({ currentUserProfile, onSelectEmployee }: Adm
             </div>
           )}
         </div>
+
+        {/* Dynamic Group Permissions Panel (Only visible if allowed canManageUsers) */}
+        {currentUserPermissions.canManageUsers && permsConfigState && (
+          <div className="col-span-full bg-white p-5 sm:p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg">
+                  <Lock className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-800">إعدادات وصلاحيات المجموعات والوظائف</h3>
+                  <p className="text-xs text-slate-400">التحكم في صلاحيات الوصول والاعتماد لكل دور وظيفي في النظام بشكل ديناميكي</p>
+                </div>
+              </div>
+              <button
+                onClick={handleSavePermissions}
+                disabled={savingPerms}
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-all shadow-sm cursor-pointer disabled:opacity-50 flex items-center gap-1.5 shrink-0 self-start sm:self-auto"
+              >
+                {savingPerms ? (
+                  <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : 'حفظ الصلاحيات الآن'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Card for each role */}
+              {([
+                { key: 'admin', label: 'مدير نظام', desc: 'يمتلك كامل الصلاحيات الإدارية والمالية', color: 'indigo' },
+                { key: 'supervisor', label: 'مشرف مالي', desc: 'مسؤول عن مراجعة المعاملات واعتمادها المباشر', color: 'purple' },
+                { key: 'employee', label: 'مستخدم عادي / فني', desc: 'يسجل طلبات البدلات والعهدة الخاصة به فقط للتفعيل', color: 'emerald' }
+              ] as const).map(({ key, label, desc, color }) => (
+                <div key={key} className="bg-slate-50/75 p-4 rounded-xl border border-slate-100/80 space-y-3">
+                  <div className="space-y-0.5">
+                    <span className={`inline-flex px-2 py-0.5 text-[10px] font-bold rounded bg-slate-200 text-slate-700 border border-slate-300`}>
+                      {label}
+                    </span>
+                    <p className="text-[11px] text-slate-400 font-medium leading-tight mt-1">{desc}</p>
+                  </div>
+
+                  <div className="space-y-2.5 pt-2 border-t border-slate-200/50">
+                    {([
+                      { perm: 'canViewAllSheets', label: 'رؤية كشوفات الجميع' },
+                      { perm: 'canApproveTransactions', label: 'اعتماد ومراجعة المعاملات' },
+                      { perm: 'canAddTransactionsToOthers', label: 'إضافة معاملات مباشرة للغير' },
+                      { perm: 'canDeleteTransactions', label: 'صلاحية حذف المعاملات' },
+                      { perm: 'canManageUsers', label: 'إدارة وتفعيل حسابات الموظفين' }
+                    ] as const).map(({ perm, label: permLabel }) => (
+                      <div key={perm} className="flex items-center justify-between text-xs bg-white py-1.5 px-2.5 rounded-lg border border-slate-100">
+                        <span className="font-medium text-slate-700">{permLabel}</span>
+                        <input
+                          type="checkbox"
+                          checked={permsConfigState[key]?.[perm] ?? false}
+                          onChange={() => handleTogglePermission(key, perm)}
+                          className="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

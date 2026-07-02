@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot, doc, addDoc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../firebase';
-import { Transaction, UserProfile } from '../types';
+import { Transaction, UserProfile, RolePermissions } from '../types';
 import { 
   ArrowLeft, Plus, Check, X, Trash2, Calendar, FileText, 
   TrendingUp, TrendingDown, DollarSign, Wallet, ClipboardList, CheckCircle2, Clock
@@ -11,10 +11,11 @@ import { motion, AnimatePresence } from 'motion/react';
 interface WorksheetProps {
   employeeProfile: UserProfile;
   currentUserProfile: UserProfile;
+  currentUserPermissions: RolePermissions;
   onBack?: () => void;
 }
 
-export default function Worksheet({ employeeProfile, currentUserProfile, onBack }: WorksheetProps) {
+export default function Worksheet({ employeeProfile, currentUserProfile, currentUserPermissions, onBack }: WorksheetProps) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -30,9 +31,11 @@ export default function Worksheet({ employeeProfile, currentUserProfile, onBack 
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const isAdmin = currentUserProfile.role === 'admin';
+  const canApprove = currentUserPermissions.canApproveTransactions;
+  const canAdd = currentUserPermissions.canAddTransactionsToOthers;
+  const canDelete = currentUserPermissions.canDeleteTransactions;
   const isOwnSheet = currentUserProfile.uid === employeeProfile.uid;
-  const showActions = isAdmin || (isOwnSheet && currentUserProfile.allowDelete);
+  const showActions = canApprove || canDelete || (isOwnSheet && currentUserProfile.allowDelete);
 
   // Real-time listener for user's transactions
   useEffect(() => {
@@ -121,7 +124,7 @@ export default function Worksheet({ employeeProfile, currentUserProfile, onBack 
       custody: type === 'custody' ? numericAmount : 0,
       allowance: type === 'allowance' ? numericAmount : 0,
       addedBy: currentUserProfile.uid,
-      status: isAdmin ? 'approved' : 'pending', // Admins' entries are auto-approved, employees are pending
+      status: canApprove ? 'approved' : 'pending', // Admins/Supervisors' entries are auto-approved, employees are pending
       createdAt: new Date().toISOString()
     };
 
@@ -309,8 +312,8 @@ export default function Worksheet({ employeeProfile, currentUserProfile, onBack 
                       {showActions && (
                         <td className="py-1 px-2 text-center">
                           <div className="flex items-center justify-center gap-1.5">
-                            {/* Admin actions for pending transactions */}
-                            {isAdmin && isPending && (
+                            {/* Admin/Supervisor actions for pending transactions */}
+                            {canApprove && isPending && (
                               <>
                                 <button
                                   onClick={() => handleApprove(tx.id)}
@@ -329,8 +332,8 @@ export default function Worksheet({ employeeProfile, currentUserProfile, onBack 
                               </>
                             )}
 
-                            {/* Delete action (Admins can delete any, Employees can only delete if they have allowDelete enabled) */}
-                            {(isAdmin || (isOwnSheet && currentUserProfile.allowDelete)) && (
+                            {/* Delete action (Admins/Supervisors can delete any, Employees can only delete if they have allowDelete enabled) */}
+                            {(canDelete || (isOwnSheet && currentUserProfile.allowDelete)) && (
                               deleteConfirmId === tx.id ? (
                                 <div className="flex items-center gap-1 bg-rose-50 border border-rose-100 p-1 rounded-xl">
                                   <button
@@ -384,14 +387,14 @@ export default function Worksheet({ employeeProfile, currentUserProfile, onBack 
       </div>
 
       {/* Input Form to add Transaction */}
-      {(isAdmin || isOwnSheet) && (
+      {(canAdd || isOwnSheet) && (
         <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-100 shadow-sm space-y-3">
           <div className="flex items-center gap-2 pb-2.5 border-b border-slate-100">
             <div className="p-1 bg-emerald-50 text-emerald-600 rounded-md">
               <Plus className="h-4 w-4" />
             </div>
             <h3 className="text-sm sm:text-base font-bold text-slate-800">
-              إضافة عملية جديدة {isOwnSheet && !isAdmin && <span className="text-[11px] font-normal text-slate-400">(سترسل للموافقة من قبل الإدارة)</span>}
+              إضافة عملية جديدة {isOwnSheet && !canApprove && <span className="text-[11px] font-normal text-slate-400">(سترسل للموافقة من قبل الإدارة)</span>}
             </h3>
           </div>
 

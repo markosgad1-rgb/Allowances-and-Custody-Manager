@@ -1,17 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, onSnapshot, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
-import { UserProfile } from './types';
+import { UserProfile, RolePermissions, PermissionsConfig, UserRole } from './types';
 import Login from './components/Login';
 import Worksheet from './components/Worksheet';
 import AdminPanel from './components/AdminPanel';
 import { LogOut, User, Sparkles, Clock } from 'lucide-react';
+
+export const DEFAULT_PERMISSIONS: PermissionsConfig = {
+  admin: {
+    canViewAllSheets: true,
+    canApproveTransactions: true,
+    canAddTransactionsToOthers: true,
+    canDeleteTransactions: true,
+    canManageUsers: true,
+  },
+  supervisor: {
+    canViewAllSheets: true,
+    canApproveTransactions: true,
+    canAddTransactionsToOthers: true,
+    canDeleteTransactions: false,
+    canManageUsers: false,
+  },
+  employee: {
+    canViewAllSheets: false,
+    canApproveTransactions: false,
+    canAddTransactionsToOthers: false,
+    canDeleteTransactions: false,
+    canManageUsers: false,
+  },
+};
 
 export default function App() {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(() => {
     const saved = localStorage.getItem('allowances_session');
     return saved ? JSON.parse(saved) : null;
   });
+  const [permissionsConfig, setPermissionsConfig] = useState<PermissionsConfig>(DEFAULT_PERMISSIONS);
   const [selectedEmployee, setSelectedEmployee] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -43,6 +68,24 @@ export default function App() {
     verifySession();
   }, []);
 
+  // Fetch / Subscribe to the dynamic role permissions from Firestore
+  useEffect(() => {
+    const permRef = doc(db, 'settings', 'permissions');
+    const unsubscribe = onSnapshot(permRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setPermissionsConfig(docSnap.data() as PermissionsConfig);
+      } else {
+        // Bootstrap if it doesn't exist
+        setDoc(permRef, DEFAULT_PERMISSIONS).catch((err) => {
+          console.error("Error bootstrapping permissions:", err);
+        });
+      }
+    }, (error) => {
+      console.error("Error reading permissions from Firestore:", error);
+    });
+    return () => unsubscribe();
+  }, []);
+
   // Handle manual logout
   const handleLogout = async () => {
     setUserProfile(null);
@@ -57,6 +100,22 @@ export default function App() {
       setUserProfile(JSON.parse(saved));
     }
   };
+
+  const getUserPermissions = (): RolePermissions => {
+    if (!userProfile || userProfile.role === 'pending') {
+      return {
+        canViewAllSheets: false,
+        canApproveTransactions: false,
+        canAddTransactionsToOthers: false,
+        canDeleteTransactions: false,
+        canManageUsers: false,
+      };
+    }
+    const role = userProfile.role;
+    return permissionsConfig[role] || DEFAULT_PERMISSIONS[role] || DEFAULT_PERMISSIONS.employee;
+  };
+
+  const permissions = getUserPermissions();
 
   if (loading) {
     return (
@@ -105,6 +164,15 @@ export default function App() {
     );
   }
 
+  const getRoleBadgeLabel = (role: UserRole) => {
+    switch (role) {
+      case 'admin': return 'مدير النظام';
+      case 'supervisor': return 'مشرف مالي';
+      case 'employee': return `فني / مهندس (رقم: ${userProfile.jobNumber})`;
+      default: return '';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Universal Sticky Header */}
@@ -126,7 +194,7 @@ export default function App() {
             <div className="hidden sm:flex flex-col text-right">
               <span className="text-xs font-bold text-slate-800">{userProfile.name}</span>
               <span className="text-[10px] text-slate-400 font-medium leading-none mt-0.5">
-                {userProfile.role === 'admin' ? 'مسؤول مالي' : `فني / مهندس (رقم: ${userProfile.jobNumber})`}
+                {getRoleBadgeLabel(userProfile.role)}
               </span>
             </div>
             <div className="p-2 bg-slate-100 text-slate-600 rounded-xl">
@@ -147,17 +215,20 @@ export default function App() {
 
       {/* Main View Area */}
       <main className="flex-1 py-4 sm:py-8">
-        {userProfile.role === 'admin' ? (
+        {permissions.canViewAllSheets ? (
           selectedEmployee ? (
             <Worksheet 
               employeeProfile={selectedEmployee} 
               currentUserProfile={userProfile}
+              currentUserPermissions={permissions}
               onBack={() => setSelectedEmployee(null)}
             />
           ) : (
             <div className="max-w-5xl mx-auto px-4">
               <AdminPanel 
                 currentUserProfile={userProfile} 
+                currentUserPermissions={permissions}
+                permissionsConfig={permissionsConfig}
                 onSelectEmployee={(emp) => setSelectedEmployee(emp)}
               />
             </div>
@@ -166,6 +237,7 @@ export default function App() {
           <Worksheet 
             employeeProfile={userProfile} 
             currentUserProfile={userProfile}
+            currentUserPermissions={permissions}
           />
         )}
       </main>

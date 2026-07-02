@@ -1,4 +1,14 @@
-export type UserRole = 'admin' | 'employee' | 'pending';
+export type UserRole = 'admin' | 'supervisor' | 'employee' | 'pending';
+
+export interface RolePermissions {
+  canViewAllSheets: boolean;
+  canApproveTransactions: boolean;
+  canAddTransactionsToOthers: boolean;
+  canDeleteTransactions: boolean;
+  canManageUsers: boolean;
+}
+
+export type PermissionsConfig = Record<'admin' | 'supervisor' | 'employee', RolePermissions>;
 
 export interface UserProfile {
   uid: string;
