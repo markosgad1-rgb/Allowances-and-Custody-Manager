@@ -794,24 +794,7 @@ export default function AdminPanel({ currentUserProfile, currentUserPermissions,
                   </form>
                 </div>
 
-                <motion.div 
-                  key="instructions"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="bg-emerald-900 text-emerald-100 p-6 rounded-2xl border border-emerald-800 shadow-sm space-y-4"
-                >
-                  <div className="flex items-center gap-2">
-                    <ShieldAlert className="h-5 w-5 text-emerald-300" />
-                    <h3 className="font-bold text-lg text-white">إرشادات المسؤول المالي</h3>
-                  </div>
-                  <ul className="text-xs space-y-2 leading-relaxed list-disc list-inside">
-                    <li>يمكنك إنشاء حسابات مباشرة للفنيين والمهندسين من النموذج أعلاه وإعطائهم البريد وكلمة المرور لتسجيل الدخول الفوري.</li>
-                    <li>عند الضغط على أي موظف نشط، ستتمكن من رؤية جدوله وحساباته بالكامل.</li>
-                    <li>بصفتك مسؤولاً، يمكنك إضافة عهد جديدة أو مواصلات وبدلات مباشرة، وسوف تُعتمد فوراً دون مراجعة.</li>
-                    <li>المعاملات التي يضيفها الموظف نفسه تظهر في صفحة كشف حسابه وبجانبها تنبيه باللون الأصفر حتى تضغط على موافقة لتفعيلها بالرصيد.</li>
-                  </ul>
-                </motion.div>
+
               </div>
             )}
           </AnimatePresence>
