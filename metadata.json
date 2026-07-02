@@ -1,0 +1,6 @@
+{
+  "name": "Allowances and Custody Manager",
+  "description": "A system to manage allowances, custodies, and invoices for technicians and engineers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
