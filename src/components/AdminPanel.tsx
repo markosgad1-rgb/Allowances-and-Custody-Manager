@@ -300,8 +300,19 @@ export default function AdminPanel({ currentUserProfile, currentUserPermissions,
 
   return (
     <div className="space-y-4 sm:space-y-6">
+      {/* App Title Banner - placed at the very top of the page */}
+      <div className="bg-slate-900 text-white p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md border border-slate-800">
+        <div>
+          <div className="text-xs text-slate-400 font-bold">مرحباً بك مجدداً يا مسؤول</div>
+          <div className="text-lg sm:text-xl font-extrabold mt-1 text-emerald-400">{currentUserProfile.name}</div>
+        </div>
+        <div className="text-slate-400 text-xs sm:text-left font-medium">
+          لوحة الإشراف المالي وإدارة العهد والبدلات
+        </div>
+      </div>
+
       {/* Top Banner Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {/* Total Users */}
         <div className="bg-white p-3.5 sm:p-4 rounded-xl border border-slate-100 shadow-sm flex items-center justify-between">
           <div>
@@ -339,12 +350,6 @@ export default function AdminPanel({ currentUserProfile, currentUserPermissions,
           <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-lg">
             <Award className="h-5 w-5" />
           </div>
-        </div>
-
-        {/* App Title Banner */}
-        <div className="bg-slate-900 text-white p-3.5 sm:p-4 rounded-xl flex flex-col justify-center">
-          <div className="text-xs text-slate-300">مرحباً بك مجدداً يا مسؤول</div>
-          <div className="text-base font-bold mt-0.5 truncate">{currentUserProfile.name}</div>
         </div>
       </div>
 
