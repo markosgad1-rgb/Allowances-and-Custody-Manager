@@ -212,9 +212,25 @@ export default function Worksheet({ employeeProfile, currentUserProfile, current
         <div className="bg-[#22c55e] text-white py-3 px-4 text-center space-y-1">
           <div className="text-[10px] font-semibold tracking-wider text-emerald-100 uppercase">الاسـم</div>
           <h1 id="employee-name" className="text-xl sm:text-2xl font-bold tracking-tight">{employeeProfile.name}</h1>
-          <div className="pt-1.5 border-t border-emerald-400/30 max-w-xs mx-auto flex items-center justify-center gap-3">
-            <span className="text-[10px] text-emerald-100">الرقم الوظيفي:</span>
-            <span id="employee-job-number" className="text-base font-black font-mono">{employeeProfile.jobNumber}</span>
+          <div className="pt-1.5 border-t border-emerald-400/30 max-w-2xl mx-auto flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs">
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] text-emerald-100 font-bold">الرقم الوظيفي:</span>
+              <span id="employee-job-number" className="text-base font-black font-mono">{employeeProfile.jobNumber}</span>
+            </div>
+            <div className="flex items-center gap-1 sm:border-r sm:border-emerald-400/30 sm:pr-3">
+              <span className="text-[10px] text-emerald-100 font-bold">المسمى الوظيفي:</span>
+              <span className="font-semibold text-emerald-50">{employeeProfile.jobTitle || 'غير محدد'}</span>
+            </div>
+            <div className="flex items-center gap-1 sm:border-r sm:border-emerald-400/30 sm:pr-3">
+              <span className="text-[10px] text-emerald-100 font-bold">تاريخ التوظيف:</span>
+              <span className="font-semibold font-mono text-emerald-50">{employeeProfile.hireDate || 'غير محدد'}</span>
+            </div>
+            {employeeProfile.phoneNumber && (
+              <div className="flex items-center gap-1 sm:border-r sm:border-emerald-400/30 sm:pr-3">
+                <span className="text-[10px] text-emerald-100 font-bold">الموبايل:</span>
+                <span className="font-semibold font-mono text-emerald-50">{employeeProfile.phoneNumber}</span>
+              </div>
+            )}
           </div>
         </div>
 

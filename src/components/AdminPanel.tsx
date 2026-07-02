@@ -6,7 +6,7 @@ import { db, firebaseConfig, handleFirestoreError, OperationType } from '../fire
 import { UserProfile, Transaction, RolePermissions, PermissionsConfig } from '../types';
 import { 
   Users, UserCheck, Search, ShieldAlert, Award, FileSpreadsheet, 
-  Trash2, Mail, Hash, ChevronLeft, UserX, AlertCircle, Clock, UserPlus, Lock, Settings
+  Trash2, Mail, Hash, ChevronLeft, UserX, AlertCircle, Clock, UserPlus, Lock, Settings, Phone
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -31,6 +31,9 @@ export default function AdminPanel({ currentUserProfile, currentUserPermissions,
   const [approveName, setApproveName] = useState('');
   const [approveJobNumber, setApproveJobNumber] = useState('');
   const [approveRole, setApproveRole] = useState<'employee' | 'supervisor' | 'admin'>('employee');
+  const [approveJobTitle, setApproveJobTitle] = useState('');
+  const [approveHireDate, setApproveHireDate] = useState('');
+  const [approvePhoneNumber, setApprovePhoneNumber] = useState('');
   const [approveError, setApproveError] = useState('');
   const [approveLoading, setApproveLoading] = useState(false);
 
@@ -40,6 +43,9 @@ export default function AdminPanel({ currentUserProfile, currentUserPermissions,
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserRole, setNewUserRole] = useState<'employee' | 'supervisor' | 'admin'>('employee');
+  const [newUserJobTitle, setNewUserJobTitle] = useState('');
+  const [newUserHireDate, setNewUserHireDate] = useState('');
+  const [newUserPhoneNumber, setNewUserPhoneNumber] = useState('');
   const [newUserAllowDelete, setNewUserAllowDelete] = useState(false);
   const [approveAllowDelete, setApproveAllowDelete] = useState(false);
   const [createError, setCreateError] = useState('');
@@ -54,6 +60,62 @@ export default function AdminPanel({ currentUserProfile, currentUserPermissions,
   // Dynamic Permissions state
   const [savingPerms, setSavingPerms] = useState(false);
   const [permsConfigState, setPermsConfigState] = useState<PermissionsConfig>(permissionsConfig);
+
+  // User Editing states
+  const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editJobNumber, setEditJobNumber] = useState('');
+  const [editRole, setEditRole] = useState<'employee' | 'supervisor' | 'admin'>('employee');
+  const [editJobTitle, setEditJobTitle] = useState('');
+  const [editHireDate, setEditHireDate] = useState('');
+  const [editPhoneNumber, setEditPhoneNumber] = useState('');
+  const [editAllowDelete, setEditAllowDelete] = useState(false);
+  const [editError, setEditError] = useState('');
+  const [editLoading, setEditLoading] = useState(false);
+
+  const handleStartEditUser = (user: UserProfile) => {
+    setSelectedPendingUser(null);
+    setEditingUser(user);
+    setEditName(user.name || '');
+    setEditJobNumber(user.jobNumber || '');
+    setEditRole((user.role as any) || 'employee');
+    setEditJobTitle(user.jobTitle || '');
+    setEditHireDate(user.hireDate || '');
+    setEditPhoneNumber(user.phoneNumber || '');
+    setEditAllowDelete(user.allowDelete || false);
+    setEditError('');
+  };
+
+  const handleEditUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    if (!editName.trim() || !editJobNumber.trim()) {
+      setEditError('الاسم والرقم الوظيفي مطلوبان.');
+      return;
+    }
+
+    setEditLoading(true);
+    setEditError('');
+
+    const userDocPath = `users/${editingUser.uid}`;
+    try {
+      await updateDoc(doc(db, 'users', editingUser.uid), {
+        name: editName.trim(),
+        jobNumber: editJobNumber.trim(),
+        role: editRole,
+        jobTitle: editJobTitle.trim() || undefined,
+        hireDate: editHireDate || undefined,
+        phoneNumber: editPhoneNumber.trim() || undefined,
+        allowDelete: editAllowDelete
+      });
+      setEditingUser(null);
+    } catch (err: any) {
+      console.error(err);
+      setEditError('حدث خطأ أثناء تحديث بيانات المستخدم.');
+    } finally {
+      setEditLoading(false);
+    }
+  };
 
   useEffect(() => {
     setPermsConfigState(permissionsConfig);
@@ -155,7 +217,10 @@ export default function AdminPanel({ currentUserProfile, currentUserPermissions,
         role: newUserRole,
         password: newUserPassword,
         createdAt: new Date().toISOString(),
-        allowDelete: newUserAllowDelete
+        allowDelete: newUserAllowDelete,
+        jobTitle: newUserJobTitle.trim() || undefined,
+        hireDate: newUserHireDate || undefined,
+        phoneNumber: newUserPhoneNumber.trim() || undefined
       };
 
       await setDoc(doc(db, 'users', usernameId), userProfile);
@@ -167,6 +232,9 @@ export default function AdminPanel({ currentUserProfile, currentUserPermissions,
       setNewUserEmail('');
       setNewUserPassword('');
       setNewUserRole('employee');
+      setNewUserJobTitle('');
+      setNewUserHireDate('');
+      setNewUserPhoneNumber('');
       setNewUserAllowDelete(false);
     } catch (err: any) {
       console.error(err);
@@ -245,11 +313,17 @@ export default function AdminPanel({ currentUserProfile, currentUserPermissions,
         name: approveName.trim(),
         jobNumber: approveJobNumber.trim(),
         role: approveRole,
-        allowDelete: approveAllowDelete
+        allowDelete: approveAllowDelete,
+        jobTitle: approveJobTitle.trim() || undefined,
+        hireDate: approveHireDate || undefined,
+        phoneNumber: approvePhoneNumber.trim() || undefined
       });
       setSelectedPendingUser(null);
       setApproveName('');
       setApproveJobNumber('');
+      setApproveJobTitle('');
+      setApproveHireDate('');
+      setApprovePhoneNumber('');
       setApproveAllowDelete(false);
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, userDocPath);
@@ -260,10 +334,14 @@ export default function AdminPanel({ currentUserProfile, currentUserPermissions,
 
   // Open approval modal/form for a pending user
   const openApproval = (user: UserProfile) => {
+    setEditingUser(null);
     setSelectedPendingUser(user);
     setApproveName(user.name || '');
     setApproveJobNumber(user.jobNumber || '');
     setApproveRole('employee');
+    setApproveJobTitle(user.jobTitle || '');
+    setApproveHireDate(user.hireDate || '');
+    setApprovePhoneNumber(user.phoneNumber || '');
     setApproveAllowDelete(user.allowDelete || false);
   };
 
@@ -455,6 +533,21 @@ export default function AdminPanel({ currentUserProfile, currentUserPermissions,
                         </div>
                         <div className="text-xs text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-1.5 mt-1">
                           <span className="flex items-center gap-1"><Mail className="h-3 w-3" /> {u.email}</span>
+                          {u.phoneNumber && (
+                            <span className="flex items-center gap-1 text-slate-600 font-semibold font-mono bg-slate-100 border border-slate-200 px-1.5 py-0.5 rounded text-[10px]">
+                              <Phone className="h-2.5 w-2.5 text-slate-500" /> {u.phoneNumber}
+                            </span>
+                          )}
+                          {u.jobTitle && (
+                            <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[10px] font-bold border border-slate-200">
+                              الوظيفة: {u.jobTitle}
+                            </span>
+                          )}
+                          {u.hireDate && (
+                            <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[10px] font-bold border border-slate-200 font-mono">
+                              تعيين: {u.hireDate}
+                            </span>
+                          )}
                           {u.role !== 'pending' && (
                             <div className="flex items-center gap-1">
                               <span className="font-bold text-slate-500">كلمة المرور:</span>
@@ -548,6 +641,14 @@ export default function AdminPanel({ currentUserProfile, currentUserPermissions,
                           </div>
 
                           <button
+                            onClick={() => handleStartEditUser(u)}
+                            className="flex items-center gap-1 px-3 py-1.5 bg-white hover:bg-indigo-50 border border-slate-200 hover:border-indigo-200 text-slate-700 hover:text-indigo-700 rounded-lg text-xs font-bold transition-all cursor-pointer"
+                          >
+                            <Settings className="h-3.5 w-3.5" />
+                            <span>تعديل البيانات</span>
+                          </button>
+
+                          <button
                             onClick={() => onSelectEmployee(u)}
                             className="flex items-center gap-1 px-3 py-1.5 bg-white hover:bg-emerald-50 border border-slate-200 hover:border-emerald-200 text-slate-700 hover:text-emerald-700 rounded-lg text-xs font-bold transition-all cursor-pointer"
                           >
@@ -574,230 +675,159 @@ export default function AdminPanel({ currentUserProfile, currentUserPermissions,
 
         {/* Right Column: Dynamic Form / Alert section */}
         <div className="space-y-4">
-          {/* Quick instructions or Approval Form */}
-          <AnimatePresence mode="wait">
-            {selectedPendingUser ? (
-              <motion.div 
-                key="approval-form"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="bg-white p-6 rounded-2xl border-2 border-amber-500 shadow-lg space-y-4"
-              >
-                <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-                  <div className="p-1.5 bg-amber-50 text-amber-600 rounded-lg">
-                    <UserCheck className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-800">تفعيل حساب العضو</h3>
-                    <p className="text-xs text-slate-400">تأكيد البيانات وضم العضو للفريق</p>
-                  </div>
-                </div>
-
-                <form onSubmit={handleApproveUserSubmit} className="space-y-4">
-                  {approveError && (
-                    <div className="flex items-center gap-1.5 p-3 text-xs text-rose-800 bg-rose-50 rounded-xl border border-rose-100">
-                      <AlertCircle className="h-4 w-4 shrink-0" />
-                      <span>{approveError}</span>
-                    </div>
-                  )}
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1.5">الاسم ثلاثي أو ثنائي</label>
-                    <input 
-                      type="text" 
-                      value={approveName}
-                      onChange={(e) => setApproveName(e.target.value)}
-                      placeholder="بيتر عادل نسيم"
-                      className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1.5">الرقم الوظيفي</label>
-                    <input 
-                      type="text" 
-                      value={approveJobNumber}
-                      onChange={(e) => setApproveJobNumber(e.target.value)}
-                      placeholder="822"
-                      className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all"
-                      required
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold text-slate-500 mb-1.5">الصلاحية / الدور</label>
-                    <select
-                      value={approveRole}
-                      onChange={(e) => setApproveRole(e.target.value as any)}
-                      className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all font-semibold"
-                    >
-                      <option value="employee">مستخدم عادي / فني (رؤية حسابه الشخصي فقط)</option>
-                      <option value="supervisor">مشرف مالي (إدارة الحسابات والاعتماد)</option>
-                      <option value="admin">مدير نظام (صلاحية كاملة وتحكم بالصلاحيات)</option>
-                    </select>
-                  </div>
-
-                  <div className="flex items-center gap-2 py-2 px-3 bg-slate-50 rounded-xl border border-slate-200">
-                    <input 
-                      type="checkbox"
-                      id="approveAllowDelete"
-                      checked={approveAllowDelete}
-                      onChange={(e) => setApproveAllowDelete(e.target.checked)}
-                      className="h-4.5 w-4.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
-                    />
-                    <label htmlFor="approveAllowDelete" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
-                      السماح لهذا المستخدم بحذف معاملاته الخاصة
-                    </label>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 pt-2">
-                    <button
-                      type="submit"
-                      disabled={approveLoading}
-                      className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center"
-                    >
-                      {approveLoading ? (
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      ) : 'تفعيل العضو'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedPendingUser(null)}
-                      className="py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer text-center"
-                    >
-                      إلغاء
-                    </button>
-                  </div>
-                </form>
-              </motion.div>
-            ) : (
-              <div className="space-y-4">
-                {/* Create New User Account Form */}
-                <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-                  <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
-                    <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
-                      <UserPlus className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-800">إضافة فني / مهندس جديد</h3>
-                      <p className="text-xs text-slate-400">إنشاء حساب جديد وتعيين كلمة المرور فوراً</p>
-                    </div>
-                  </div>
-
-                  <form onSubmit={handleCreateUser} className="space-y-4">
-                    {createError && (
-                      <div className="flex items-center gap-1.5 p-3 text-xs text-rose-800 bg-rose-50 rounded-xl border border-rose-100">
-                        <AlertCircle className="h-4 w-4 shrink-0" />
-                        <span>{createError}</span>
-                      </div>
-                    )}
-
-                    {createSuccess && (
-                      <div className="flex items-center gap-1.5 p-3 text-xs text-emerald-800 bg-emerald-50 rounded-xl border border-emerald-100">
-                        <UserCheck className="h-4 w-4 shrink-0" />
-                        <span>{createSuccess}</span>
-                      </div>
-                    )}
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1.5">الاسم ثلاثي أو ثنائي</label>
-                      <input 
-                        type="text" 
-                        value={newUserName}
-                        onChange={(e) => setNewUserName(e.target.value)}
-                        placeholder="بيتر عادل نسيم"
-                        className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1.5">الرقم الوظيفي</label>
-                      <input 
-                        type="text" 
-                        value={newUserJobNumber}
-                        onChange={(e) => setNewUserJobNumber(e.target.value)}
-                        placeholder="822"
-                        className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1.5">اسم المستخدم (أو البريد الإلكتروني)</label>
-                      <input 
-                        type="text" 
-                        value={newUserEmail}
-                        onChange={(e) => setNewUserEmail(e.target.value)}
-                        placeholder="مثال: peter أو peter@company.com"
-                        className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all text-left"
-                        dir="ltr"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1.5">كلمة المرور (6 أحرف كحد أدنى)</label>
-                      <input 
-                        type="password" 
-                        value={newUserPassword}
-                        onChange={(e) => setNewUserPassword(e.target.value)}
-                        placeholder="••••••••"
-                        className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all text-left"
-                        dir="ltr"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1.5">الصلاحية / الدور</label>
-                      <select
-                        value={newUserRole}
-                        onChange={(e) => setNewUserRole(e.target.value as any)}
-                        className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all font-semibold"
-                      >
-                        <option value="employee">مستخدم عادي / فني (رؤية حسابه الشخصي فقط)</option>
-                        <option value="supervisor">مشرف مالي (إدارة الحسابات والاعتماد)</option>
-                        <option value="admin">مدير نظام (صلاحية كاملة وتحكم بالصلاحيات)</option>
-                      </select>
-                    </div>
-
-                    <div className="flex items-center gap-2 py-2 px-3 bg-slate-50 rounded-xl border border-slate-200">
-                      <input 
-                        type="checkbox"
-                        id="newUserAllowDelete"
-                        checked={newUserAllowDelete}
-                        onChange={(e) => setNewUserAllowDelete(e.target.checked)}
-                        className="h-4.5 w-4.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
-                      />
-                      <label htmlFor="newUserAllowDelete" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
-                        السماح لهذا المستخدم بحذف معاملاته الخاصة
-                      </label>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={createLoading}
-                      className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
-                    >
-                      {createLoading ? (
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      ) : (
-                        <>
-                          <UserPlus className="h-4 w-4" />
-                          <span>إنشاء الحساب فوراً</span>
-                        </>
-                      )}
-                    </button>
-                  </form>
-                </div>
-
-
+          {/* Create New User Account Form */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+              <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
+                <UserPlus className="h-5 w-5" />
               </div>
-            )}
-          </AnimatePresence>
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">إضافة فني / مهندس جديد</h3>
+                <p className="text-xs text-slate-400">إنشاء حساب جديد وتعيين كلمة المرور فوراً</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateUser} className="space-y-4">
+              {createError && (
+                <div className="flex items-center gap-1.5 p-3 text-xs text-rose-800 bg-rose-50 rounded-xl border border-rose-100">
+                  <AlertCircle className="h-4 w-4 shrink-0" />
+                  <span>{createError}</span>
+                </div>
+              )}
+
+              {createSuccess && (
+                <div className="flex items-center gap-1.5 p-3 text-xs text-emerald-800 bg-emerald-50 rounded-xl border border-emerald-100">
+                  <UserCheck className="h-4 w-4 shrink-0" />
+                  <span>{createSuccess}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5">الاسم ثلاثي أو ثنائي</label>
+                <input 
+                  type="text" 
+                  value={newUserName}
+                  onChange={(e) => setNewUserName(e.target.value)}
+                  placeholder="بيتر عادل نسيم"
+                  className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5">الرقم الوظيفي</label>
+                <input 
+                  type="text" 
+                  value={newUserJobNumber}
+                  onChange={(e) => setNewUserJobNumber(e.target.value)}
+                  placeholder="822"
+                  className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5">اسم المستخدم (أو البريد الإلكتروني)</label>
+                <input 
+                  type="text" 
+                  value={newUserEmail}
+                  onChange={(e) => setNewUserEmail(e.target.value)}
+                  placeholder="مثال: peter أو peter@company.com"
+                  className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all text-left"
+                  dir="ltr"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5">كلمة المرور (6 أحرف كحد أدنى)</label>
+                <input 
+                  type="password" 
+                  value={newUserPassword}
+                  onChange={(e) => setNewUserPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all text-left"
+                  dir="ltr"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5">الصلاحية / الدور</label>
+                <select
+                  value={newUserRole}
+                  onChange={(e) => setNewUserRole(e.target.value as any)}
+                  className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all font-semibold"
+                >
+                  <option value="employee">مستخدم عادي / فني (رؤية حسابه الشخصي فقط)</option>
+                  <option value="supervisor">مشرف مالي (إدارة الحسابات والاعتماد)</option>
+                  <option value="admin">مدير نظام (صلاحية كاملة وتحكم بالصلاحيات)</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5">المسمى الوظيفي (البوزيشن)</label>
+                  <input 
+                    type="text" 
+                    value={newUserJobTitle}
+                    onChange={(e) => setNewUserJobTitle(e.target.value)}
+                    placeholder="مثال: مهندس صيانة، فني ميكانيكا"
+                    className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5">تاريخ التوظيف</label>
+                  <input 
+                    type="date" 
+                    value={newUserHireDate}
+                    onChange={(e) => setNewUserHireDate(e.target.value)}
+                    className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all font-mono"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 mb-1.5">رقم الموبايل</label>
+                <input 
+                  type="tel" 
+                  value={newUserPhoneNumber}
+                  onChange={(e) => setNewUserPhoneNumber(e.target.value)}
+                  placeholder="مثال: 012xxxxxxxx"
+                  className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all text-left"
+                  dir="ltr"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 py-2 px-3 bg-slate-50 rounded-xl border border-slate-200">
+                <input 
+                  type="checkbox"
+                  id="newUserAllowDelete"
+                  checked={newUserAllowDelete}
+                  onChange={(e) => setNewUserAllowDelete(e.target.checked)}
+                  className="h-4.5 w-4.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                />
+                <label htmlFor="newUserAllowDelete" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
+                  السماح لهذا المستخدم بحذف معاملاته الخاصة
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                disabled={createLoading}
+                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {createLoading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <>
+                    <UserPlus className="h-4 w-4" />
+                    <span>إنشاء الحساب فوراً</span>
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
 
           {/* Quick Alert list for pending user account additions */}
           {pendingUsers.length > 0 && (
@@ -891,6 +921,278 @@ export default function AdminPanel({ currentUserProfile, currentUserPermissions,
         )}
 
       </div>
+
+      {/* Modals for Editing and Approving Users */}
+      <AnimatePresence>
+        {selectedPendingUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm overflow-y-auto">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white w-full max-w-lg rounded-2xl border border-slate-100 shadow-2xl p-6 space-y-4 my-8 relative z-50 text-right"
+              dir="rtl"
+            >
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+                <div className="p-1.5 bg-amber-50 text-amber-600 rounded-lg">
+                  <UserCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">تفعيل حساب العضو</h3>
+                  <p className="text-xs text-slate-400">تأكيد البيانات وضم العضو للفريق</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleApproveUserSubmit} className="space-y-4">
+                {approveError && (
+                  <div className="flex items-center gap-1.5 p-3 text-xs text-rose-800 bg-rose-50 rounded-xl border border-rose-100">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{approveError}</span>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5">الاسم ثلاثي أو ثنائي</label>
+                  <input 
+                    type="text" 
+                    value={approveName}
+                    onChange={(e) => setApproveName(e.target.value)}
+                    placeholder="بيتر عادل نسيم"
+                    className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5">الرقم الوظيفي</label>
+                  <input 
+                    type="text" 
+                    value={approveJobNumber}
+                    onChange={(e) => setApproveJobNumber(e.target.value)}
+                    placeholder="822"
+                    className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5">الصلاحية / الدور</label>
+                  <select
+                    value={approveRole}
+                    onChange={(e) => setApproveRole(e.target.value as any)}
+                    className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all font-semibold"
+                  >
+                    <option value="employee">مستخدم عادي / فني (رؤية حسابه الشخصي فقط)</option>
+                    <option value="supervisor">مشرف مالي (إدارة الحسابات والاعتماد)</option>
+                    <option value="admin">مدير نظام (صلاحية كاملة وتحكم بالصلاحيات)</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1.5">المسمى الوظيفي (البوزيشن)</label>
+                    <input 
+                      type="text" 
+                      value={approveJobTitle}
+                      onChange={(e) => setApproveJobTitle(e.target.value)}
+                      placeholder="مثال: مهندس ميكانيكا، فني شبكات"
+                      className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1.5">تاريخ التوظيف</label>
+                    <input 
+                      type="date" 
+                      value={approveHireDate}
+                      onChange={(e) => setApproveHireDate(e.target.value)}
+                      className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5">رقم الموبايل</label>
+                  <input 
+                    type="tel" 
+                    value={approvePhoneNumber}
+                    onChange={(e) => setApprovePhoneNumber(e.target.value)}
+                    placeholder="مثال: 012xxxxxxxx"
+                    className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none transition-all text-left"
+                    dir="ltr"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 py-2 px-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <input 
+                    type="checkbox"
+                    id="approveAllowDelete"
+                    checked={approveAllowDelete}
+                    onChange={(e) => setApproveAllowDelete(e.target.checked)}
+                    className="h-4.5 w-4.5 rounded text-emerald-600 focus:ring-emerald-500 border-slate-300 cursor-pointer"
+                  />
+                  <label htmlFor="approveAllowDelete" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
+                    السماح لهذا المستخدم بحذف معاملاته الخاصة
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  <button
+                    type="submit"
+                    disabled={approveLoading}
+                    className="py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center"
+                  >
+                    {approveLoading ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : 'تفعيل العضو'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedPendingUser(null)}
+                    className="py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer text-center"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+
+        {editingUser && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm overflow-y-auto">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white w-full max-w-lg rounded-2xl border border-slate-100 shadow-2xl p-6 space-y-4 my-8 relative z-50 text-right"
+              dir="rtl"
+            >
+              <div className="flex items-center gap-2 pb-3 border-b border-slate-100">
+                <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded-lg">
+                  <Settings className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-800">تعديل بيانات المستخدم</h3>
+                  <p className="text-xs text-slate-400">تحديث تفاصيل الحساب والصلاحيات</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleEditUserSubmit} className="space-y-4">
+                {editError && (
+                  <div className="flex items-center gap-1.5 p-3 text-xs text-rose-800 bg-rose-50 rounded-xl border border-rose-100">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span>{editError}</span>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5">الاسم ثلاثي أو ثنائي</label>
+                  <input 
+                    type="text" 
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="بيتر عادل نسيم"
+                    className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5">الرقم الوظيفي</label>
+                  <input 
+                    type="text" 
+                    value={editJobNumber}
+                    onChange={(e) => setEditJobNumber(e.target.value)}
+                    placeholder="822"
+                    className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5">الصلاحية / الدور</label>
+                  <select
+                    value={editRole}
+                    onChange={(e) => setEditRole(e.target.value as any)}
+                    className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all font-semibold"
+                  >
+                    <option value="employee">مستخدم عادي / فني (رؤية حسابه الشخصي فقط)</option>
+                    <option value="supervisor">مشرف مالي (إدارة الحسابات والاعتماد)</option>
+                    <option value="admin">مدير نظام (صلاحية كاملة وتحكم بالصلاحيات)</option>
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1.5">المسمى الوظيفي (البوزيشن)</label>
+                    <input 
+                      type="text" 
+                      value={editJobTitle}
+                      onChange={(e) => setEditJobTitle(e.target.value)}
+                      placeholder="مثال: مهندس ميكانيكا، فني شبكات"
+                      className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-500 mb-1.5">تاريخ التوظيف</label>
+                    <input 
+                      type="date" 
+                      value={editHireDate}
+                      onChange={(e) => setEditHireDate(e.target.value)}
+                      className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5">رقم الموبايل</label>
+                  <input 
+                    type="tel" 
+                    value={editPhoneNumber}
+                    onChange={(e) => setEditPhoneNumber(e.target.value)}
+                    placeholder="مثال: 012xxxxxxxx"
+                    className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all text-left"
+                    dir="ltr"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 py-2 px-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <input 
+                    type="checkbox"
+                    id="editAllowDelete"
+                    checked={editAllowDelete}
+                    onChange={(e) => setEditAllowDelete(e.target.checked)}
+                    className="h-4.5 w-4.5 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 cursor-pointer"
+                  />
+                  <label htmlFor="editAllowDelete" className="text-xs font-bold text-slate-700 cursor-pointer select-none">
+                    السماح لهذا المستخدم بحذف معاملاته الخاصة
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 pt-2">
+                  <button
+                    type="submit"
+                    disabled={editLoading}
+                    className="py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center"
+                  >
+                    {editLoading ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : 'حفظ التعديلات'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingUser(null)}
+                    className="py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer text-center"
+                  >
+                    إلغاء
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

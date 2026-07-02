@@ -40,33 +40,32 @@ export default function App() {
   const [selectedEmployee, setSelectedEmployee] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Sync / Verify profile status on load
+  // Sync / Verify profile status on load in real-time
   useEffect(() => {
-    const verifySession = async () => {
-      if (userProfile) {
-        try {
-          const docRef = doc(db, 'users', userProfile.uid);
-          const docSnap = await getDoc(docRef);
-          
-          if (docSnap.exists()) {
-            const freshData = docSnap.data() as UserProfile;
-            setUserProfile(freshData);
-            localStorage.setItem('allowances_session', JSON.stringify(freshData));
-          } else {
-            // Document doesn't exist anymore, log out
-            setUserProfile(null);
-            localStorage.removeItem('allowances_session');
-          }
-        } catch (err) {
-          console.error("Error verifying session with Firestore:", err);
-          // Don't log out on temporary network issues, keep the local profile
-        }
+    if (!userProfile?.uid) {
+      setLoading(false);
+      return;
+    }
+
+    const docRef = doc(db, 'users', userProfile.uid);
+    const unsubscribe = onSnapshot(docRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const freshData = docSnap.data() as UserProfile;
+        setUserProfile(freshData);
+        localStorage.setItem('allowances_session', JSON.stringify(freshData));
+      } else {
+        // Document doesn't exist anymore, log out
+        setUserProfile(null);
+        localStorage.removeItem('allowances_session');
       }
       setLoading(false);
-    };
+    }, (error) => {
+      console.error("Error subscribing to user session:", error);
+      setLoading(false);
+    });
 
-    verifySession();
-  }, []);
+    return () => unsubscribe();
+  }, [userProfile?.uid]);
 
   // Fetch / Subscribe to the dynamic role permissions from Firestore
   useEffect(() => {

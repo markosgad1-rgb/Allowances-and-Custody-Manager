@@ -19,6 +19,9 @@ export interface UserProfile {
   createdAt: string;
   password?: string;
   allowDelete?: boolean;
+  jobTitle?: string;
+  hireDate?: string;
+  phoneNumber?: string;
 }
 
 export interface Transaction {
