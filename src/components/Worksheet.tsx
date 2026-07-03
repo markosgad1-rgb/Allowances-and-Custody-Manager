@@ -241,7 +241,7 @@ export default function Worksheet({ employeeProfile, currentUserProfile, current
               {/* Image styling: Golden orange headers */}
               <tr className="bg-[#f59e0b] text-slate-900 font-bold border-b-2 border-slate-200">
                 <th className="py-2 px-2.5 border-l border-amber-400/50 text-center w-36 text-xs">التاريخ</th>
-                <th className="py-2 px-2.5 border-l border-amber-400/50 text-right text-xs">ملاحظة</th>
+                <th className="py-2 px-2.5 border-l border-amber-400/50 text-right text-xs whitespace-nowrap min-w-[200px]">ملاحظة</th>
                 <th className="py-2 px-2.5 border-l border-amber-400/50 text-center w-32 text-xs">عهدة</th>
                 <th className="py-2 px-2.5 border-l border-amber-400/50 text-center w-32 text-xs">بدل</th>
                 <th className="py-2 px-2.5 text-center w-40 text-xs">الرصيد</th>
@@ -285,17 +285,17 @@ export default function Worksheet({ employeeProfile, currentUserProfile, current
                       </td>
 
                       {/* Notes & Status */}
-                      <td className="py-1.5 px-2.5 border-l border-slate-100 text-xs sm:text-sm text-slate-700 font-medium">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span>{tx.notes}</span>
+                      <td className="py-2.5 px-3 border-l border-slate-100 text-xs sm:text-sm text-slate-700 font-semibold whitespace-nowrap min-w-[200px]">
+                        <div className="flex items-center gap-3">
+                          <span className="text-slate-800 font-semibold whitespace-nowrap">{tx.notes}</span>
                           {isPending && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-100">
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-100 shrink-0">
                               <Clock className="h-2.5 w-2.5" />
                               قيد المراجعة
                             </span>
                           )}
                           {isRejected && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-100">
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-100 shrink-0">
                               <X className="h-2.5 w-2.5" />
                               مرفوض
                             </span>

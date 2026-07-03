@@ -480,23 +480,24 @@ export default function AdminPanel({ currentUserProfile, currentUserPermissions,
             </div>
 
             {/* Users List Grid */}
-            <div className="space-y-2">
+            <div>
               {loading ? (
-                <div className="py-8 text-center text-slate-400">
+                <div className="py-8 text-center text-slate-400 bg-white border border-slate-200 rounded-2xl shadow-sm">
                   <div className="w-6 h-6 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
                   <span>جاري تحميل بيانات الفريق...</span>
                 </div>
               ) : filteredUsers.length === 0 ? (
-                <div className="py-8 text-center text-slate-400 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
+                <div className="py-8 text-center text-slate-400 bg-white border border-slate-200 rounded-2xl shadow-sm">
                   <UserX className="h-8 w-8 text-slate-300 mx-auto mb-1" />
                   <span className="text-xs">لا يوجد مستخدمون يطابقون خيارات البحث الحالية</span>
                 </div>
               ) : (
-                filteredUsers.map((u) => (
-                  <div 
-                    key={u.uid}
-                    className="flex flex-col sm:flex-row sm:items-center justify-between p-2.5 bg-slate-50 hover:bg-slate-100/75 rounded-xl border border-slate-100 transition-all group gap-2"
-                  >
+                <div className="bg-white border border-slate-200 rounded-2xl divide-y divide-slate-200 shadow-sm overflow-hidden">
+                  {filteredUsers.map((u) => (
+                    <div 
+                      key={u.uid}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-slate-50/75 transition-all group gap-2"
+                    >
                     <div 
                       onClick={() => u.role !== 'pending' && onSelectEmployee(u)}
                       className={`flex items-center gap-3 flex-1 ${u.role !== 'pending' ? 'cursor-pointer' : ''}`}
@@ -667,7 +668,8 @@ export default function AdminPanel({ currentUserProfile, currentUserPermissions,
                       </button>
                     </div>
                   </div>
-                ))
+                ))}
+                </div>
               )}
             </div>
           </div>
