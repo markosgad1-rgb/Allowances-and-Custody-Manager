@@ -64,12 +64,14 @@ export default function AdminPanel({ currentUserProfile, currentUserPermissions,
   // User Editing states
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
   const [editJobNumber, setEditJobNumber] = useState('');
   const [editRole, setEditRole] = useState<'employee' | 'supervisor' | 'admin'>('employee');
   const [editJobTitle, setEditJobTitle] = useState('');
   const [editHireDate, setEditHireDate] = useState('');
   const [editPhoneNumber, setEditPhoneNumber] = useState('');
   const [editAllowDelete, setEditAllowDelete] = useState(false);
+  const [editPassword, setEditPassword] = useState('');
   const [editError, setEditError] = useState('');
   const [editLoading, setEditLoading] = useState(false);
 
@@ -77,12 +79,14 @@ export default function AdminPanel({ currentUserProfile, currentUserPermissions,
     setSelectedPendingUser(null);
     setEditingUser(user);
     setEditName(user.name || '');
+    setEditEmail(user.email || '');
     setEditJobNumber(user.jobNumber || '');
     setEditRole((user.role as any) || 'employee');
     setEditJobTitle(user.jobTitle || '');
     setEditHireDate(user.hireDate || '');
     setEditPhoneNumber(user.phoneNumber || '');
     setEditAllowDelete(user.allowDelete || false);
+    setEditPassword(user.password || 'Mero@2211');
     setEditError('');
   };
 
@@ -93,6 +97,14 @@ export default function AdminPanel({ currentUserProfile, currentUserPermissions,
       setEditError('الاسم والرقم الوظيفي مطلوبان.');
       return;
     }
+    if (!editEmail.trim()) {
+      setEditError('اسم المستخدم / البريد الإلكتروني مطلوب.');
+      return;
+    }
+    if (editPassword.trim().length < 6) {
+      setEditError('كلمة المرور يجب أن تكون 6 أحرف على الأقل.');
+      return;
+    }
 
     setEditLoading(true);
     setEditError('');
@@ -101,8 +113,10 @@ export default function AdminPanel({ currentUserProfile, currentUserPermissions,
     try {
       await updateDoc(doc(db, 'users', editingUser.uid), {
         name: editName.trim(),
+        email: editEmail.trim(),
         jobNumber: editJobNumber.trim(),
         role: editRole,
+        password: editPassword.trim(),
         jobTitle: editJobTitle.trim() || undefined,
         hireDate: editHireDate || undefined,
         phoneNumber: editPhoneNumber.trim() || undefined,
@@ -1095,6 +1109,32 @@ export default function AdminPanel({ currentUserProfile, currentUserPermissions,
                     onChange={(e) => setEditName(e.target.value)}
                     placeholder="بيتر عادل نسيم"
                     className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5">اسم المستخدم / البريد الإلكتروني</label>
+                  <input 
+                    type="text" 
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    placeholder="peter@app.local"
+                    className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all text-left font-mono font-bold text-slate-700"
+                    dir="ltr"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 mb-1.5">كلمة المرور (6 أحرف كحد أدنى)</label>
+                  <input 
+                    type="text" 
+                    value={editPassword}
+                    onChange={(e) => setEditPassword(e.target.value)}
+                    placeholder="Mero@2211"
+                    className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none transition-all text-left font-mono font-bold text-slate-700"
+                    dir="ltr"
                     required
                   />
                 </div>
